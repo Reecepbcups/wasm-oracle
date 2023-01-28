@@ -1,7 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 
-// TODO: change anything that says "denom" and make more generalized (ex: "identifier") so other non financial data can be stored on chain
-
 #[cw_serde]
 pub struct InstantiateMsg {
     pub addresses: Vec<String>, // if empty = permissionless
@@ -20,9 +18,6 @@ pub struct Identifier {
     pub exponent: u8, // ex: 6 = 10**6. So on query, divide by 10**6 to get the decimal representation
 }
 
-// Future: SudoMsg to slash validators?
-// Save address'es last submit block height, and have a public CheckSlash function. If someone calls it and there is a slash, pay said user some JUNO as reward
-
 #[cw_serde]
 pub enum ExecuteMsg {
     // AddAddress { address: String },
@@ -31,9 +26,10 @@ pub enum ExecuteMsg {
     // RemoveDenom { denom: String },
 
     // all values are handled as value/1_000_000    
-    Submit { id: String, value: u64 },
+    Submit { id: String, value: u64 }, // on submit, they get a small amount of rewards from the contract
 
-    // DowntimeSlasg { address: String }, // requires people to setup bots. They get a small % of their funds
+    // Register {}   (requires funds to be sent as well, set via config)
+    // DowntimeSlash { address: String }, // requires people to setup bots. They get a small % of funds if they find someone who was down for too long
 }
 
 #[cw_serde]
@@ -44,8 +40,7 @@ pub enum QueryMsg {
         id: String,
         measure: String, // mean/average or median
     },
-
-    // TODO: add ADDRESSES and their last block submits
+    
     #[returns(AllValuesResponse)]
     AllValues { id: String },
 
