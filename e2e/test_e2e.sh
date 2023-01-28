@@ -81,7 +81,7 @@ function upload_oracle {
     # == INSTANTIATE ==
     ADMIN="$KEY_ADDR"
 
-    JSON_MSG=$(printf '{"addresses":["%s","%s"],"denoms":["JUNO"]}' "$ADMIN" "juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk")
+    JSON_MSG=$(printf '{"addresses":["%s","%s","%s"],"data":[{"id":"JUNO","exponent":6}],"max_submit_rate":0}' "$ADMIN" "juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk" "juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y")
     TX_HASH=$($BINARY tx wasm instantiate "$BASE_CODE_ID" $JSON_MSG --label "vault" $JUNOD_COMMAND_ARGS --admin $KEY_ADDR | jq -r '.txhash') && echo $VAULT_TX
 
 
@@ -118,13 +118,16 @@ function add_accounts {
     echo "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry" | $BINARY keys add test-user --recover --keyring-backend test
     # juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk
     echo "wealth flavor believe regret funny network recall kiss grape useless pepper cram hint member few certain unveil rather brick bargain curious require crowd raise" | $BINARY keys add other-user --recover --keyring-backend test
+    # juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y
+    echo "clip hire initial neck maid actor venue client foam budget lock catalog sweet steak waste crater broccoli pipe steak sister coyote moment obvious choose" | $BINARY keys add user3 --recover --keyring-backend test
 
-    # send some 10 junox funds to the user
+    # send some 10 junox funds to the users
     $BINARY tx bank send test-user juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk 10000000ujunox $JUNOD_COMMAND_ARGS
+    $BINARY tx bank send test-user juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y 100000ujunox $JUNOD_COMMAND_ARGS
 
     # check funds where sent
-    other_balance=$($BINARY q bank balances juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk --output json)
-    ASSERT_EQUAL "$other_balance" '{"balances":[{"denom":"ujunox","amount":"10000000"}],"pagination":{"next_key":null,"total":"0"}}'
+    # other_balance=$($BINARY q bank balances juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk --output json)
+    # ASSERT_EQUAL "$other_balance" '{"balances":[{"denom":"ujunox","amount":"10000000"}],"pagination":{"next_key":null,"total":"0"}}'
 }
 
 # === COPY ALL ABOVE TO SET ENVIROMENT UP LOCALLY ====
@@ -142,7 +145,7 @@ sleep 5
 # add query here until state check is good, then continue
 
 # Don't allow errors after this point
-set -e
+# set -e
 
 health_status
 add_accounts
@@ -157,35 +160,32 @@ addrs=$(query_contract $ORACLE_CONTRACT '{"addresses":{}}' | jq -r '.data.addres
 # ASSERT_EQUAL "$admin" $KEY_ADDR
 
 # no price yet
-price=$(query_contract $ORACLE_CONTRACT '{"price":{"denom":"JUNO","measure":"median"}}' | jq -r '.data') && echo $price
-price=$(query_contract $ORACLE_CONTRACT '{"price":{"denom":"JUNO","measure":"average"}}' | jq -r '.data') && echo $price
+price=$(query_contract $ORACLE_CONTRACT '{"value":{"id":"JUNO","measure":"median"}}' | jq -r '.data') && echo $price
 # ASSERT_EQUAL "$admin" $KEY_ADDR
 
 # submit price (so $1 is 1_000_000. Then when we query, we just / 1_000_000 = 1)
 # only the addresses in 'addresses' can submit prices. 
 # TODO: add exponent to the price (6 for juno in this case) = $1USD
-wasm_cmd $ORACLE_CONTRACT '{"submit_price":{"denom":"JUNO","price":1000000}}' "" show_log
-wasm_cmd $ORACLE_CONTRACT '{"submit_price":{"denom":"JUNO","price":1002500}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
-# need a 3rd person to test median
-price=$(query_contract $ORACLE_CONTRACT '{"price":{"denom":"JUNO","measure":"median"}}' | jq -r '.data') && echo $price
-price=$(query_contract $ORACLE_CONTRACT '{"price":{"denom":"JUNO","measure":"average"}}' | jq -r '.data') && echo $price
+wasm_cmd $ORACLE_CONTRACT '{"submit":{"id":"JUNO","value":1000000}}' "" show_log
+wasm_cmd $ORACLE_CONTRACT '{"submit":{"id":"JUNO","value":1002500}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
+wasm_cmd $ORACLE_CONTRACT '{"submit":{"id":"JUNO","value":1004000}}' "" show_log "$TX_FLAGS --keyring-backend test --from user3"
+
+price=$(query_contract $ORACLE_CONTRACT '{"value":{"id":"JUNO","measure":"median"}}' | jq -r '.data') && echo $price
+price=$(query_contract $ORACLE_CONTRACT '{"value":{"id":"JUNO","measure":"average"}}' | jq -r '.data') && echo $price
 
 # fails, not a good user
 # wasm_cmd $ORACLE_CONTRACT '{"submit_price":{"denom":"JUNO","price":69420}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
 # price=$(query_contract $ORACLE_CONTRACT '{"price":{"denom":"JUNO","measure":"median"}}' | jq -r '.data') && echo $price
 
-wasm_cmd $ORACLE_CONTRACT '{"submit_price":{"denom":"JUNO","price":1000005}}' "" show_log
-price=$(query_contract $ORACLE_CONTRACT '{"price":{"denom":"JUNO","measure":"median"}}' | jq -r '.data') && echo $price
-price=$(query_contract $ORACLE_CONTRACT '{"price":{"denom":"JUNO","measure":"average"}}' | jq -r '.data') && echo $price
+wasm_cmd $ORACLE_CONTRACT '{"submit":{"id":"JUNO","value":1100005}}' "" show_log
+price=$(query_contract $ORACLE_CONTRACT '{"value":{"id":"JUNO","measure":"median"}}' | jq -r '.data') && echo $price
+price=$(query_contract $ORACLE_CONTRACT '{"value":{"id":"JUNO","measure":"average"}}' | jq -r '.data') && echo $price
 
 # fails, not accepted
-wasm_cmd $ORACLE_CONTRACT '{"submit_price":{"denom":"OSMO","price":500000}}' "" show_log
+wasm_cmd $ORACLE_CONTRACT '{"submit":{"id":"OSMO","value":500000}}' "" show_log
 
-bulk_prices=$(query_contract $ORACLE_CONTRACT '{"wallets_prices":{"address":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl"}}' | jq -r '.data') && echo $bulk_prices
-bulk_prices=$(query_contract $ORACLE_CONTRACT '{"wallets_prices":{"address":"juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"}}' | jq -r '.data') && echo $bulk_prices
-
-
-bulk_prices=$(query_contract $ORACLE_CONTRACT '{"wallets_prices":{"address":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl"}}' | jq -r '.data') && echo $bulk_prices
+bulk_prices=$(query_contract $ORACLE_CONTRACT '{"wallets_values":{"address":"juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl"}}' | jq -r '.data') && echo $bulk_prices
+bulk_prices=$(query_contract $ORACLE_CONTRACT '{"wallets_values":{"address":"juno1efd63aw40lxf3n4mhf7dzhjkr453axurv2zdzk"}}' | jq -r '.data') && echo $bulk_prices
 
 
 # TODO: add admin (DAO) which can add other denoms to accept

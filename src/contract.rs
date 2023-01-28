@@ -5,13 +5,13 @@ use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 
 use crate::error::ContractError;
 use crate::msg::{
-    AddressesResponse, AllDenomPrices, ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg,
-    WalletsPricesResponse,
+    AddressesResponse, AllValuesResponse, ContractInformationResponse, ExecuteMsg, InstantiateMsg,
+    QueryMsg, ValueResponse, WalletsValuesResponse,
 };
 
 use crate::state::{
-    get_average_price, get_median_price, get_prices, get_wallets_submitting_price, ADDRESSES,
-    ALLOWED_DENOMS, PRICES,
+    get_average_value, get_median_value, get_values, get_wallets_submitting_values, ADDRESSES,
+    ALLOWED_DATA, INFORMATION, VALUES,
 };
 
 use crate::helpers::check_duplicate_addresses;
@@ -23,9 +23,10 @@ use crate::helpers::check_duplicate_addresses;
 pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    // if addresses.length ==0, its permissionless
     msg.addresses.iter().for_each(|address| {
         deps.api.addr_validate(address).unwrap();
     });
@@ -38,14 +39,71 @@ pub fn instantiate(
             .unwrap();
     });
 
+    // see if msg.admin is set, if not, use info.sender
+    let admin = msg.admin.unwrap_or_else(|| info.sender.into_string());
+    // ensure it is a valid address
+    deps.api.addr_validate(&admin)?;
+
+    let max_submit_rate = msg.max_submit_rate.unwrap_or(5);
+
+    INFORMATION.save(
+        deps.storage,
+        &ContractInformationResponse {
+            admin,
+            max_submit_block_rate: max_submit_rate,
+        },
+    )?;
+
     // save msg.denoms to state
-    msg.denoms.iter().for_each(|denom| {
-        ALLOWED_DENOMS
-            .save(deps.storage, denom.as_str(), &true)
+    msg.data.iter().for_each(|data| {
+        ALLOWED_DATA
+            .save(deps.storage, data.id.as_str(), &true)
             .unwrap();
     });
 
     Ok(Response::new().add_attribute("action", "instantiate"))
+}
+
+fn is_address_allowed_to_send(deps: &DepsMut, sender: &str) -> Result<(), ContractError> {
+    // permissioned impl. In the future we can change if the contract is permissionless
+    if ADDRESSES.may_load(deps.storage, sender)?.is_none() {
+        return Err(ContractError::Unauthorized {});
+    }
+    Ok(())
+}
+
+fn is_data_id_allowed(deps: &DepsMut, denom: &str) -> Result<(), ContractError> {
+    // permissioned impl. In the future we can change if the contract is permissionless
+    if ALLOWED_DATA.may_load(deps.storage, denom)?.is_none() {
+        return Err(ContractError::InvalidDenom {
+            denom: denom.to_string(),
+        });
+    }
+    Ok(())
+}
+
+fn is_submission_within_rate_limit_rate(
+    deps: &DepsMut,
+    wallet: &str,
+    current_height: u64,
+) -> Result<(), ContractError> {
+    // get last send
+    let last_send = ADDRESSES.may_load(deps.storage, wallet)?.unwrap_or(0);
+
+    if last_send == 0 {
+        return Ok(());
+    }
+
+    let max_submit_rate = INFORMATION.load(deps.storage)?.max_submit_block_rate;
+
+    let spread = current_height - last_send;
+
+    if spread < max_submit_rate {
+        return Err(ContractError::SubmittingTooQuickly {
+            blocks: max_submit_rate - spread,
+        });
+    }
+    Ok(())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -56,33 +114,23 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::SubmitPrice { denom, price } => {
-            // Ensure denom is allowed
-            let value = ALLOWED_DENOMS.may_load(deps.storage, &denom)?;
-            if value.is_none() || !value.unwrap() {
-                return Err(ContractError::InvalidDenom { denom });
-            }
+        ExecuteMsg::Submit { id, value } => {
+            is_data_id_allowed(&deps, id.as_str())?;
+            is_address_allowed_to_send(&deps, info.sender.as_str())?;
 
-            // Ensure they are allowed to send in prices (permissioned)
-            // TODO: allow permissionless sends in the future?
-            if ADDRESSES
-                .may_load(deps.storage, info.sender.as_str())?
-                .is_none()
-            {
-                return Err(ContractError::Unauthorized {});
-            }
+            // Only allow send every X blocks (init msg: 5 default)
+            is_submission_within_rate_limit_rate(&deps, info.sender.as_str(), env.block.height)?;
 
-            // TODO: only allow send every X blocks? (init msg: 5 default)
-            // check other prices, if too far off, SLASH THEM / remove from list (make configurable). THen do not put price in.
+            // check other values, if too far off, SLASH THEM / remove from list (make configurable). THen do not put value in.
+            // value_difference()
 
-            PRICES.save(deps.storage, (denom.as_str(), info.sender.as_str()), &price)?;
+            VALUES.save(deps.storage, (id.as_str(), info.sender.as_str()), &value)?;
 
-            // ADDRESSES.save(deps.storage, info.sender.as_str(), &env.block.height)?;
             ADDRESSES.update(deps.storage, info.sender.as_str(), |_| -> StdResult<_> {
                 Ok(env.block.height)
             })?;
 
-            Ok(Response::new().add_attribute("action", "submit_price"))
+            Ok(Response::new().add_attribute("action", "submit_data"))
         }
     }
 }
@@ -90,57 +138,27 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::AllDenomPrices { denom } => {
-            let prices = get_prices(deps, denom.as_str());
-            Ok(to_binary(&AllDenomPrices { prices })?)
+        QueryMsg::AllValues { id } => {
+            let values = get_values(deps, id.as_str());
+            let all_values_response = AllValuesResponse { values };
+            return to_binary(&all_values_response);
         }
 
-        QueryMsg::Price { denom, measure } => {
-            // let price = PRICES.may_load(deps.storage, denom.as_str())?;
-            // match price {
-            //     Some(price) => Ok(to_binary(&PriceResponse {
-            //         denom,
-            //         price: price.price,
-            //     })?),
-            //     None => Ok(to_binary(&PriceResponse { denom, price: 0 })?),
-            // }
+        QueryMsg::Value { id, measure } => {
+            let value: u64 = match measure.as_ref() {
+                "median" => get_median_value(deps, id.as_str()),
+                _ => get_average_value(deps, id.as_str()),
+            };
 
-            // get_prices(deps, denom.as_str())
-            //     .into_iter()
-            //     .max()
-            //     .map(|price| {
-            //         to_binary(&PriceResponse {
-            //             denom: denom.as_str(),
-            //             price,
-            //         })
-            //     })
-            //     .unwrap_or(Ok(to_binary(&PriceResponse {
-            //         denom: denom.as_str(),
-            //         price: 0,
-            //     })?))
-            
-            match measure.as_ref() {
-                "median" => {
-                    let value: u64 = get_median_price(deps, denom.as_str());
-
-                    return to_binary(&PriceResponse {
-                        denom: denom.as_str(),
-                        price: value,
-                    });
-                }
-                _ => {
-                    let value: u64 = get_average_price(deps, denom.as_str());
-                    Ok(to_binary(&PriceResponse {
-                        denom: denom.as_str(),
-                        price: value,
-                    })?)
-                }
-            }
+            return to_binary(&ValueResponse {
+                id: id.as_str(),
+                value,
+            });
         }
 
-        QueryMsg::WalletsPrices { address } => {
-            let v = get_wallets_submitting_price(deps, address.as_str());
-            Ok(to_binary(&WalletsPricesResponse { prices: v })?)
+        QueryMsg::WalletsValues { address } => {
+            let v = get_wallets_submitting_values(deps, address.as_str());
+            Ok(to_binary(&WalletsValuesResponse { values: v })?)
         }
 
         QueryMsg::Addresses {} => {
@@ -149,10 +167,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 .into_iter()
                 .collect();
 
-            match addresses {
-                Ok(addresses) => Ok(to_binary(&AddressesResponse { addresses })?),
-                Err(_) => Ok(to_binary(&AddressesResponse { addresses: vec![] })?),
-            }
+            let addresses_response = match addresses {
+                Ok(addresses) => AddressesResponse { addresses },
+                Err(_) => AddressesResponse { addresses: vec![] },
+            };
+
+            return to_binary(&addresses_response);
         }
     }
 }

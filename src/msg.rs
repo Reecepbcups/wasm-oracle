@@ -1,9 +1,21 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 
+// TODO: change anything that says "denom" and make more generalized (ex: "identifier") so other non financial data can be stored on chain
+
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub addresses: Vec<String>,
-    pub denoms: Vec<String>, // coingecko ids for now, can add more providers in the future
+    pub addresses: Vec<String>, // if empty = permissionless
+
+    pub data: Vec<Identifier>,
+
+    pub admin: Option<String>,
+    pub max_submit_rate: Option<u64>, // 5 by default
+}
+
+#[cw_serde]
+pub struct Identifier {
+    pub id: String,    
+    pub exponent: u8, // ex: 6 = 10**6
 }
 
 // Future: SudoMsg to slash validators?
@@ -17,33 +29,41 @@ pub enum ExecuteMsg {
     // RemoveDenom { denom: String },
 
     // all values are handled as value/1_000_000
-    SubmitPrice { denom: String, price: u64 },
+    Submit { id: String, value: u64 },
 }
 
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(PriceResponse)]
-    Price {
-        denom: String,
+    #[returns(ValueResponse)]
+    Value {
+        id: String,
         measure: String, // mean/average or median
     },
 
     // TODO: add ADDRESSES and their last block submits
-    #[returns(AllDenomPrices)]
-    AllDenomPrices { denom: String },
+    #[returns(AllValuesResponse)]
+    AllValues { id: String },
 
     #[returns(AddressesResponse)]
     Addresses {},
 
-    #[returns(WalletsPricesResponse)]
-    WalletsPrices { address: String },
+    #[returns(WalletsValuesResponse)]
+    WalletsValues { address: String },
+}
+
+// === RESPONSES ===
+
+#[cw_serde]
+pub struct ContractInformationResponse {
+    pub admin: String,
+    pub max_submit_block_rate: u64,
 }
 
 #[cw_serde]
-pub struct PriceResponse<'a> {
-    pub denom: &'a str,
-    pub price: u64,
+pub struct ValueResponse<'a> {
+    pub id: &'a str,
+    pub value: u64,
 }
 #[cw_serde]
 pub struct AddressesResponse {
@@ -51,11 +71,11 @@ pub struct AddressesResponse {
 }
 
 #[cw_serde]
-pub struct WalletsPricesResponse {
-    pub prices: Vec<(String, u64)>,
+pub struct WalletsValuesResponse {
+    pub values: Vec<(String, u64)>,
 }
 
 #[cw_serde]
-pub struct AllDenomPrices {
-    pub prices: Vec<u64>,
+pub struct AllValuesResponse {
+    pub values: Vec<u64>,
 }

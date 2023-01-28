@@ -16,4 +16,7 @@ pub enum ContractError {
 
     #[error("The following denom can not be submitted: {denom}")]
     InvalidDenom { denom: String },
+
+    #[error("Submitting too fast. Next submit allowed in: {blocks} blocks")]
+    SubmittingTooQuickly { blocks: u64 },
 }
