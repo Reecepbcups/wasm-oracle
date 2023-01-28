@@ -25,6 +25,14 @@ pub fn get_values(deps: Deps, denom: &str) -> Vec<u64> {
     v
 }
 
+pub fn get_last_submit_block(deps: Deps, address: &str) -> u64 {
+    let last_submit_block = ADDRESSES.may_load(deps.storage, address);
+    match last_submit_block {
+        Ok(Some(last_submit_block)) => last_submit_block,
+        _ => 0,
+    }
+}
+
 pub fn get_median_value(deps: Deps, denom: &str) -> u64 {
     let mut v = get_values(deps, denom);
     v.sort();

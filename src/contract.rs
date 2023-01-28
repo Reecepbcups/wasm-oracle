@@ -11,7 +11,7 @@ use crate::msg::{
 
 use crate::state::{
     get_average_value, get_median_value, get_values, get_wallets_submitting_values, ADDRESSES,
-    ALLOWED_DATA, INFORMATION, VALUES,
+    ALLOWED_DATA, INFORMATION, VALUES, get_last_submit_block,
 };
 
 use crate::helpers::check_duplicate_addresses;
@@ -26,35 +26,36 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    // if addresses.length ==0, its permissionless
+    
+    check_duplicate_addresses(msg.addresses.clone())?;
+    
+    // if addresses.length == 0, its permissionless
     msg.addresses.iter().for_each(|address| {
         deps.api.addr_validate(address).unwrap();
-    });
 
-    check_duplicate_addresses(msg.addresses.clone())?;
-
-    msg.addresses.iter().for_each(|address| {
         ADDRESSES
             .save(deps.storage, address.as_str(), &env.block.height)
             .unwrap();
     });
 
+    
     // see if msg.admin is set, if not, use info.sender
-    let admin = msg.admin.unwrap_or_else(|| info.sender.into_string());
-    // ensure it is a valid address
+    let admin = msg.admin.unwrap_or_else(|| info.sender.into_string());    
     deps.api.addr_validate(&admin)?;
-
+    
     let max_submit_rate = msg.max_submit_rate.unwrap_or(5);
+    let max_block_downtime_allowed = msg.max_downtime_allowed.unwrap_or(14400); // 24 hours @ 6 seconds = 14400 blocks
 
     INFORMATION.save(
         deps.storage,
         &ContractInformationResponse {
             admin,
             max_submit_block_rate: max_submit_rate,
+            max_block_downtime_allowed
         },
     )?;
 
-    // save msg.denoms to state
+    // save allowed data ids to state
     msg.data.iter().for_each(|data| {
         ALLOWED_DATA
             .save(deps.storage, data.id.as_str(), &true)
@@ -124,6 +125,8 @@ pub fn execute(
             // check other values, if too far off, SLASH THEM / remove from list (make configurable). THen do not put value in.
             // value_difference()
 
+            // require all ids to be submited on.
+
             VALUES.save(deps.storage, (id.as_str(), info.sender.as_str()), &value)?;
 
             ADDRESSES.update(deps.storage, info.sender.as_str(), |_| -> StdResult<_> {
@@ -136,10 +139,11 @@ pub fn execute(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::AllValues { id } => {
-            let values = get_values(deps, id.as_str());
+            let values = get_values(deps, id.as_str());            
+
             let all_values_response = AllValuesResponse { values };
             return to_binary(&all_values_response);
         }
@@ -158,7 +162,18 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
         QueryMsg::WalletsValues { address } => {
             let v = get_wallets_submitting_values(deps, address.as_str());
-            Ok(to_binary(&WalletsValuesResponse { values: v })?)
+
+            let current_block = env.block.height;
+            let last_submit_block = get_last_submit_block(deps, address.as_str());
+
+
+            Ok(to_binary(&WalletsValuesResponse { last_submit_block, current_block, values: v })?)
+        }
+
+        QueryMsg::ContractInfo {  } => {
+            let info = INFORMATION.load(deps.storage)?;
+            let v = to_binary(&info)?;
+            Ok(v)
         }
 
         QueryMsg::Addresses {} => {

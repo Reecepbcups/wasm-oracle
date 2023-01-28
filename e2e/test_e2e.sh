@@ -148,8 +148,8 @@ sleep 5
 # set -e
 
 health_status
-add_accounts
 
+add_accounts
 upload_oracle
 
 # ORACLE_CONTRACT=juno14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9skjuwg8
@@ -158,6 +158,8 @@ upload_oracle
 
 addrs=$(query_contract $ORACLE_CONTRACT '{"addresses":{}}' | jq -r '.data.addresses') && echo $addrs
 # ASSERT_EQUAL "$admin" $KEY_ADDR
+
+addrs=$(query_contract $ORACLE_CONTRACT '{"contract_info":{}}' | jq -r '.data') && echo $addrs
 
 # no price yet
 price=$(query_contract $ORACLE_CONTRACT '{"value":{"id":"JUNO","measure":"median"}}' | jq -r '.data') && echo $price
