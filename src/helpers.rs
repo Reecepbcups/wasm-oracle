@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{to_binary, Addr, CosmosMsg, StdResult, WasmMsg};
 
-use crate::msg::ExecuteMsg;
+use crate::{msg::ExecuteMsg, ContractError};
 
 /// CwTemplateContract is a wrapper around Addr that provides a lot of helpers
 /// for working with this.
@@ -24,4 +24,17 @@ impl CwTemplateContract {
         }
         .into())
     }
+}
+
+pub fn check_duplicate_addresses(addresses: Vec<String>) -> Result<(), ContractError> {
+    for i in 0..addresses.len() {
+        for j in i + 1..addresses.len() {
+            if addresses[i] == addresses[j] {
+                return Err(ContractError::DuplicateAddress {
+                    address: addresses[i].clone(),
+                });
+            }
+        }
+    }
+    Ok(())
 }

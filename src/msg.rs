@@ -24,18 +24,38 @@ pub enum ExecuteMsg {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(PriceResponse)]
-    Price { denom: String },
+    Price {
+        denom: String,
+        measure: String, // mean/average or median
+    },
+
+    // TODO: add ADDRESSES and their last block submits
+    #[returns(AllDenomPrices)]
+    AllDenomPrices { denom: String },
 
     #[returns(AddressesResponse)]
     Addresses {},
+
+    #[returns(WalletsPricesResponse)]
+    WalletsPrices { address: String },
 }
 
 #[cw_serde]
-pub struct PriceResponse {
-    pub denom: String,
+pub struct PriceResponse<'a> {
+    pub denom: &'a str,
     pub price: u64,
 }
 #[cw_serde]
 pub struct AddressesResponse {
     pub addresses: Vec<String>,
+}
+
+#[cw_serde]
+pub struct WalletsPricesResponse {
+    pub prices: Vec<(String, u64)>,
+}
+
+#[cw_serde]
+pub struct AllDenomPrices {
+    pub prices: Vec<u64>,
 }
