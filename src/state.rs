@@ -12,7 +12,7 @@ pub const INFORMATION: Item<ContractInformationResponse> = Item::new("info");
 pub const ALLOWED_DATA: Map<&str, u8> = Map::new("allowed");
 
 // Address, lastBlockSubmittedFor
-pub const ADDRESSES: Map<&str, u64> = Map::new("addresses");
+pub const ADDRESSES: Map<&str, u64> = Map::new("addrs");
 
 // Ex: (denom, address): price
 pub const VALUES: Map<(&str, &str), u64> = Map::new("values");
@@ -90,9 +90,9 @@ pub fn get_twap_if_it_is_time(
     twap.push((block, current_average));
 
     // if twap.len() > max_blocks_length, remove the first element
-    // if twap.len() > info.twap_max_blocks_length.try_into().unwrap() {
-    //     twap.remove(0);
-    // }
+    if twap.len() > info.twap_max_blocks_length.try_into().unwrap() {
+        twap.remove(0);
+    }
 
     // save the new twap
     let twap = TWAPValues {

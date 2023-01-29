@@ -12,7 +12,7 @@ use crate::msg::{
 use crate::state::{
     get_average_value, get_last_submit_block, get_median_value, get_twap,
     get_twap_blocks_and_values, get_twap_if_it_is_time, get_values, get_wallets_submitting_values,
-    ADDRESSES, ALLOWED_DATA, INFORMATION, VALUES,
+    ADDRESSES, ALLOWED_DATA, INFORMATION, TWAP, VALUES,
 };
 
 use crate::helpers::{
@@ -71,6 +71,15 @@ pub fn instantiate(
     });
 
     Ok(Response::new().add_attribute("action", "instantiate"))
+}
+
+fn admin_error_check(deps: Deps, info: MessageInfo) -> Result<(), ContractError> {
+    let contract_info = INFORMATION.load(deps.storage)?;
+    if contract_info.admin != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    Ok(())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -137,6 +146,49 @@ pub fn execute(
             });
 
             Ok(Response::new().add_attribute("action", "submit_data"))
+        }
+
+        // ADMIN MESSAGES
+        ExecuteMsg::AddAddress { address } => {
+            admin_error_check(deps.as_ref(), info)?;
+
+            deps.api.addr_validate(&address)?;
+
+            ADDRESSES.save(deps.storage, address.as_str(), &0).unwrap();
+
+            Ok(Response::new().add_attribute("action", "add_address"))
+        }
+
+        ExecuteMsg::RemoveAddress { address } => {
+            admin_error_check(deps.as_ref(), info)?;
+
+            deps.api.addr_validate(&address)?;
+
+            ADDRESSES.remove(deps.storage, address.as_str());
+
+            Ok(Response::new().add_attribute("action", "remove_address"))
+        }
+
+        ExecuteMsg::AddId { id, exponent } => {
+            admin_error_check(deps.as_ref(), info)?;
+
+            ALLOWED_DATA.save(deps.storage, id.as_str(), &exponent)?;
+
+            Ok(Response::new().add_attribute("action", "add_id"))
+        }
+
+        ExecuteMsg::RemoveId { id } => {
+            admin_error_check(deps.as_ref(), info)?;
+
+            ALLOWED_DATA.remove(deps.storage, id.as_str());
+
+            // clear twap and values
+            TWAP.remove(deps.storage, id.as_str());
+
+            // TODO: remove all value matches as well in the futuer from the map => del (id, _)
+            // VALUES.remove(deps.storage, (id.as_str(), _));
+
+            Ok(Response::new().add_attribute("action", "remove_id"))
         }
     }
 }
