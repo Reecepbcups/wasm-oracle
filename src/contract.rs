@@ -113,12 +113,14 @@ pub fn execute(
                 Ok(env.block.height)
             })?;
 
-            let mut info = INFORMATION.load(deps.storage)?;
-
+            let mut contract_info = INFORMATION.load(deps.storage)?;
             data.iter().for_each(|data| {
-                if let Ok(twap) =
-                    get_twap_if_it_is_time(deps.as_ref(), &info, &data.id, env.block.height)
-                {
+                if let Ok(twap) = get_twap_if_it_is_time(
+                    deps.as_ref(),
+                    &contract_info,
+                    &data.id,
+                    env.block.height,
+                ) {
                     if twap.is_none() {
                         return;
                     }
@@ -129,8 +131,8 @@ pub fn execute(
                         .unwrap();
 
                     // update info
-                    info.twap_last_save_block_actual = env.block.height;
-                    INFORMATION.save(deps.storage, &info).unwrap();
+                    contract_info.twap_last_save_block_actual = env.block.height;
+                    INFORMATION.save(deps.storage, &contract_info).unwrap();
                 }
             });
 

@@ -31,7 +31,7 @@ function stop_docker {
 
 function start_docker {
     IMAGE_TAG=${2:-"12.0.0-alpha3"}
-    BLOCK_GAS_LIMIT=${GAS_LIMIT:-100000000} # mirrors mainnet
+    BLOCK_GAS_LIMIT=${GAS_LIMIT:-10000000} # mirrors mainnet
 
     echo "Building $IMAGE_TAG"
     echo "Configured Block Gas Limit: $BLOCK_GAS_LIMIT"
