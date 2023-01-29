@@ -5,13 +5,14 @@ use cosmwasm_std::{to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 
 use crate::error::ContractError;
 use crate::msg::{
-    AddressesResponse, AllValuesResponse, ContractInformationResponse, ExecuteMsg, InstantiateMsg,
-    QueryMsg, ValueResponse, WalletsValuesResponse,
+    AddressesResponse, AllTwapValuesResponse, AllValuesResponse, ContractInformationResponse,
+    ExecuteMsg, InstantiateMsg, QueryMsg, TWAPValueResponse, ValueResponse, WalletsValuesResponse,
 };
 
 use crate::state::{
-    get_average_value, get_median_value, get_values, get_wallets_submitting_values, ADDRESSES,
-    ALLOWED_DATA, INFORMATION, VALUES, get_last_submit_block,
+    get_average_value, get_last_submit_block, get_median_value, get_twap,
+    get_twap_blocks_and_values, get_values, get_wallets_submitting_values,
+    update_twap_if_it_is_time, ADDRESSES, ALLOWED_DATA, INFORMATION, VALUES,
 };
 
 use crate::helpers::check_duplicate_addresses;
@@ -26,9 +27,8 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    
     check_duplicate_addresses(msg.addresses.clone())?;
-    
+
     // if addresses.length == 0, its permissionless
     msg.addresses.iter().for_each(|address| {
         deps.api.addr_validate(address).unwrap();
@@ -38,20 +38,26 @@ pub fn instantiate(
             .unwrap();
     });
 
-    
     // see if msg.admin is set, if not, use info.sender
-    let admin = msg.admin.unwrap_or_else(|| info.sender.into_string());    
+    let admin = msg.admin.unwrap_or_else(|| info.sender.into_string());
     deps.api.addr_validate(&admin)?;
-    
+
     let max_submit_rate = msg.max_submit_rate.unwrap_or(5);
     let max_block_downtime_allowed = msg.max_downtime_allowed.unwrap_or(14400); // 24 hours @ 6 seconds = 14400 blocks
+
+    let twap_max_blocks_length = msg.twap_max_blocks_length.unwrap_or(100);
+    let twap_distance_between_saves = msg.twap_distance_between_saves.unwrap_or(100);
 
     INFORMATION.save(
         deps.storage,
         &ContractInformationResponse {
             admin,
             max_submit_block_rate: max_submit_rate,
-            max_block_downtime_allowed
+            max_block_downtime_allowed,
+
+            twap_max_blocks_length,
+            twap_distance_between_saves,
+            twap_last_save_block_actual: 0,
         },
     )?;
 
@@ -118,20 +124,22 @@ pub fn execute(
         ExecuteMsg::Submit { id, value } => {
             is_data_id_allowed(&deps, id.as_str())?;
             is_address_allowed_to_send(&deps, info.sender.as_str())?;
-
-            // Only allow send every X blocks (init msg: 5 default)
+            // Only allow send every X blocks (change via init msg)
             is_submission_within_rate_limit_rate(&deps, info.sender.as_str(), env.block.height)?;
 
-            // check other values, if too far off, SLASH THEM / remove from list (make configurable). THen do not put value in.
+            // check other values, if too far off (+/- X%), SLASH THEM / remove from list (make configurable). THen do not put value in.
             // value_difference()
 
-            // require all ids to be submited on.
+            // require all ids to be submitted on?
 
             VALUES.save(deps.storage, (id.as_str(), info.sender.as_str()), &value)?;
 
             ADDRESSES.update(deps.storage, info.sender.as_str(), |_| -> StdResult<_> {
                 Ok(env.block.height)
             })?;
+
+            // update twap if it is time. The average of all is saved here
+            update_twap_if_it_is_time(deps, &id, env.block.height)?;
 
             Ok(Response::new().add_attribute("action", "submit_data"))
         }
@@ -140,14 +148,7 @@ pub fn execute(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::AllValues { id } => {
-            let values = get_values(deps, id.as_str());            
-
-            let all_values_response = AllValuesResponse { values };
-            return to_binary(&all_values_response);
-        }
-
+    match msg {        
         QueryMsg::Value { id, measure } => {
             let value: u64 = match measure.as_ref() {
                 "median" => get_median_value(deps, id.as_str()),
@@ -160,17 +161,38 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             });
         }
 
+        QueryMsg::AllValues { id } => {
+            let values = get_values(deps, id.as_str());
+            let all_values_response = AllValuesResponse { values };
+            return to_binary(&all_values_response);
+        }
+
+        QueryMsg::TwapValue { id } => {
+            let value_avg = get_twap(deps, id.as_str());
+            return to_binary(&TWAPValueResponse {
+                twap_value: value_avg,
+            });
+        }
+
+        QueryMsg::AllTwapValues { id } => {
+            let all_values = get_twap_blocks_and_values(deps, id.as_str());
+            return to_binary(&AllTwapValuesResponse { all_values });
+        }
+
         QueryMsg::WalletsValues { address } => {
             let v = get_wallets_submitting_values(deps, address.as_str());
 
             let current_block = env.block.height;
             let last_submit_block = get_last_submit_block(deps, address.as_str());
 
-
-            Ok(to_binary(&WalletsValuesResponse { last_submit_block, current_block, values: v })?)
+            Ok(to_binary(&WalletsValuesResponse {
+                last_submit_block,
+                current_block,
+                values: v,
+            })?)
         }
 
-        QueryMsg::ContractInfo {  } => {
+        QueryMsg::ContractInfo {} => {
             let info = INFORMATION.load(deps.storage)?;
             let v = to_binary(&info)?;
             Ok(v)
