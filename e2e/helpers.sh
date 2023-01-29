@@ -24,8 +24,10 @@ function wasm_cmd {
     # echo "ARGS: $ARGS"
 
     tx_hash=$($BINARY tx wasm execute $CONTRACT $MESSAGE $FUNDS $ARGS | jq -r '.txhash')
+    export GAS_USED=$($BINARY query tx $tx_hash --output json | jq -r '.gas_used')    
     export CMD_LOG=$($BINARY query tx $tx_hash --output json | jq -r '.raw_log')    
     if [ "$SHOW_LOG" == "show_log" ]; then
+        echo -e "\nGAS_USED: $GAS_USED"
         echo -e "raw_log: $CMD_LOG\n================================\n"
     fi    
 }
