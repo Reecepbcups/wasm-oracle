@@ -181,7 +181,7 @@ price=$(query_contract $ORACLE_CONTRACT '{"value":{"id":"JUNO","measure":"averag
 # price=$(query_contract $ORACLE_CONTRACT '{"price":{"denom":"JUNO","measure":"median"}}' | jq -r '.data') && echo $price
 
 # todo; add check here to ensure if the price is siginifcantly above the others, its wrong and to slash
-wasm_cmd $ORACLE_CONTRACT '{"submit":{"id":"JUNO","value":1100005}}' "" show_log
+wasm_cmd $ORACLE_CONTRACT '{"submit":{"data":[{"id":"JUNO","value":2000000}]}}' "" show_log
 price=$(query_contract $ORACLE_CONTRACT '{"value":{"id":"JUNO","measure":"median"}}' | jq -r '.data') && echo $price
 price=$(query_contract $ORACLE_CONTRACT '{"value":{"id":"JUNO","measure":"average"}}' | jq -r '.data') && echo $price
 

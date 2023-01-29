@@ -81,7 +81,6 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-
         // TODO: this is so gas computational. Is it even feasible to have TWAP? Maybe we compute TWAP on query?
         ExecuteMsg::Submit { data } => {
             // is_data_id_allowed(&deps, id.as_str())?;
@@ -104,7 +103,7 @@ pub fn execute(
                 VALUES
                     .save(
                         deps.storage,
-                        (info.sender.as_str(), data.id.as_str()),
+                        (data.id.as_str(), info.sender.as_str()),
                         &data.value,
                     )
                     .unwrap();
@@ -119,7 +118,7 @@ pub fn execute(
             data.iter().for_each(|data| {
                 if let Ok(twap) =
                     get_twap_if_it_is_time(deps.as_ref(), &info, &data.id, env.block.height)
-                {                    
+                {
                     if twap.is_none() {
                         return;
                     }
