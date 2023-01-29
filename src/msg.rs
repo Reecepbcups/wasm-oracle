@@ -30,8 +30,8 @@ pub enum ExecuteMsg {
     // Admin based
     // AddAddress { address: String },
     // RemoveAddress { address: String },
-    // AddDenom { denom: String },
-    // RemoveDenom { denom: String },
+    // AddId { id: String },
+    // RemoveId { id: String },
 
     // permissionless future
     // Register {}   (requires funds to be sent as well, set via config)
@@ -89,7 +89,7 @@ pub struct ContractInformationResponse {
 #[cw_serde]
 pub struct ValueResponse<'a> {
     pub id: &'a str,
-    pub exponent: u8, // from Identifier from ALLOWED_DENOM
+    pub exponent: u8, // from Identifier from ALLOWED_DATA
     pub value: u64,
 }
 #[cw_serde]
@@ -117,11 +117,13 @@ pub struct TWAPValues {
 
 #[cw_serde]
 pub struct TWAPValueResponse {
+    pub exponent: u8, // from Identifier from ALLOWED_DATA
     pub twap_value: u64,
     pub number_of_values: u64,
 }
 
 #[cw_serde]
 pub struct AllTwapValuesResponse {
+    pub exponent: u8, // from Identifier from ALLOWED_DATA
     pub all_values: Vec<(u64, u64)>,
 }

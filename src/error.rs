@@ -14,8 +14,8 @@ pub enum ContractError {
     #[error("Duplicate address: {address}")]
     DuplicateAddress { address: String },
 
-    #[error("The following denom can not be submitted: {denom}")]
-    InvalidDenom { denom: String },
+    #[error("The following id can not be submitted: {id}")]
+    InvalidId { id: String },
 
     #[error("Submitting too fast. Next submit allowed in: {blocks} blocks")]
     SubmittingTooQuickly { blocks: u64 },

@@ -1,1 +1,1 @@
-33ed76c11a93772223cbc6ffce6409302d42388dd6280ace97ab3311845c38a7  ./target/wasm32-unknown-unknown/release/oracle.wasm
+8b6a15142b1ed8b86de509b3b874df6e737d25aee31f609eeddce579a2a7509b  ./target/wasm32-unknown-unknown/release/oracle.wasm

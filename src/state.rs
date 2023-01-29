@@ -107,9 +107,9 @@ pub fn update_twap_if_it_is_time(deps: DepsMut, id: &str, block: u64) -> Result<
 }
 
 // get all values for a id by the first key in the tuple
-pub fn get_values(deps: Deps, denom: &str) -> Vec<u64> {
+pub fn get_values(deps: Deps, id: &str) -> Vec<u64> {
     let v = VALUES
-        .prefix(denom)
+        .prefix(id)
         .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
         .into_iter()
         .map(|x| x.unwrap().1)
@@ -126,8 +126,8 @@ pub fn get_last_submit_block(deps: Deps, address: &str) -> u64 {
     }
 }
 
-pub fn get_median_value(deps: Deps, denom: &str) -> u64 {
-    let mut v = get_values(deps, denom);
+pub fn get_median_value(deps: Deps, id: &str) -> u64 {
+    let mut v = get_values(deps, id);
     v.sort();
     let len = v.len();
     if len == 0 {
@@ -140,8 +140,8 @@ pub fn get_median_value(deps: Deps, denom: &str) -> u64 {
     }
 }
 
-pub fn get_average_value(deps: Deps, denom: &str) -> u64 {
-    let v = get_values(deps, denom);
+pub fn get_average_value(deps: Deps, id: &str) -> u64 {
+    let v = get_values(deps, id);
     let len = v.len();
     if len == 0 {
         return 0;

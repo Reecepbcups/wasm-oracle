@@ -193,8 +193,6 @@ bulk_prices=$(query_contract $ORACLE_CONTRACT '{"wallets_values":{"address":"jun
 
 
 twap=$(query_contract $ORACLE_CONTRACT '{"twap_value":{"id":"JUNO"}}' | jq -r '.data') && echo $twap
-
-
 twap=$(query_contract $ORACLE_CONTRACT '{"all_twap_values":{"id":"JUNO"}}' | jq -r '.data') && echo $twap
 
 

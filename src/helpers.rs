@@ -51,12 +51,12 @@ pub fn is_address_allowed_to_send(deps: &DepsMut, sender: &str) -> Result<(), Co
     Ok(())
 }
 
-pub fn is_data_id_allowed(deps: &DepsMut, denom: &str) -> Result<(), ContractError> {
+pub fn is_data_id_allowed(deps: &DepsMut, id: &str) -> Result<(), ContractError> {
     // permissioned impl. In the future we can change if the contract is permissionless
     // This would not be required if we require all data to be sent for what is accepted
-    if ALLOWED_DATA.may_load(deps.storage, denom)?.is_none() {
-        return Err(ContractError::InvalidDenom {
-            denom: denom.to_string(),
+    if ALLOWED_DATA.may_load(deps.storage, id)?.is_none() {
+        return Err(ContractError::InvalidId {
+            id: id.to_string(),
         });
     }
     Ok(())

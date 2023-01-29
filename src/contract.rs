@@ -136,7 +136,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
         QueryMsg::TwapValue { id } => {
             let value_avg = get_twap(deps, id.as_str());
+            let exponent = ALLOWED_DATA.load(deps.storage, id.as_str())?;
+
             to_binary(&TWAPValueResponse {
+                exponent,
                 twap_value: value_avg.0,
                 number_of_values: value_avg.1,
             })
@@ -144,7 +147,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
         QueryMsg::AllTwapValues { id } => {
             let all_values = get_twap_blocks_and_values(deps, id.as_str());
-            to_binary(&AllTwapValuesResponse { all_values })
+            let exponent = ALLOWED_DATA.load(deps.storage, id.as_str())?;
+
+            to_binary(&AllTwapValuesResponse {
+                exponent,
+                all_values,
+            })
         }
 
         QueryMsg::WalletsValues { address } => {
