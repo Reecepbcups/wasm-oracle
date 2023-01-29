@@ -150,6 +150,7 @@ sleep 5
 health_status
 
 add_accounts
+
 upload_oracle
 
 # ORACLE_CONTRACT=juno14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9skjuwg8
@@ -198,7 +199,7 @@ twap=$(query_contract $ORACLE_CONTRACT '{"all_twap_values":{"id":"JUNO"}}' | jq 
 
 # TODO: add admin (DAO) which can add other denoms to accept
 
-exit 1
+exit 0
 
 # === LISTINGS TEST ===
 function test_duplicate_ask_denoms {

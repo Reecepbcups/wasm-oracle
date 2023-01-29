@@ -1,0 +1,23 @@
+on: [push]
+
+name: E2E
+
+jobs:
+
+  test:
+    name: E2E Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.66.0
+          target: wasm32-unknown-unknown
+          override: true
+
+      - name: E2E
+        run: ./e2e/test_e2e.sh
