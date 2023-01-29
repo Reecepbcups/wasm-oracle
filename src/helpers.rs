@@ -1,9 +1,13 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{to_binary, Addr, CosmosMsg, StdResult, WasmMsg};
+use cosmwasm_std::{to_binary, Addr, CosmosMsg, DepsMut, StdResult, WasmMsg};
 
-use crate::{msg::ExecuteMsg, ContractError};
+use crate::{
+    msg::ExecuteMsg,
+    state::{ADDRESSES, ALLOWED_DATA, INFORMATION},
+    ContractError,
+};
 
 /// CwTemplateContract is a wrapper around Addr that provides a lot of helpers
 /// for working with this.
@@ -35,6 +39,52 @@ pub fn check_duplicate_addresses(addresses: Vec<String>) -> Result<(), ContractE
                 });
             }
         }
+    }
+    Ok(())
+}
+
+pub fn is_address_allowed_to_send(deps: &DepsMut, sender: &str) -> Result<(), ContractError> {
+    // permissioned impl. In the future we can change if the contract is permissionless
+    if ADDRESSES.may_load(deps.storage, sender)?.is_none() {
+        return Err(ContractError::Unauthorized {});
+    }
+    Ok(())
+}
+
+pub fn is_data_id_allowed(deps: &DepsMut, denom: &str) -> Result<(), ContractError> {
+    // permissioned impl. In the future we can change if the contract is permissionless
+    // This would not be required if we require all data to be sent for what is accepted
+    if ALLOWED_DATA.may_load(deps.storage, denom)?.is_none() {
+        return Err(ContractError::InvalidDenom {
+            denom: denom.to_string(),
+        });
+    }
+    Ok(())
+}
+
+pub fn is_submission_within_rate_limit_rate(
+    deps: &DepsMut,
+    wallet: &str,
+    current_height: u64,
+) -> Result<(), ContractError> {
+    // may want to change this to be every X blocks for all, kinda like twap. But for now, this is fine?
+    // Do we really even need?
+
+    // get last send
+    let last_send = ADDRESSES.may_load(deps.storage, wallet)?.unwrap_or(0);
+
+    if last_send == 0 {
+        return Ok(());
+    }
+
+    let max_submit_rate = INFORMATION.load(deps.storage)?.max_submit_block_rate;
+
+    let spread = current_height - last_send;
+
+    if spread < max_submit_rate {
+        return Err(ContractError::SubmittingTooQuickly {
+            blocks: max_submit_rate - spread,
+        });
     }
     Ok(())
 }

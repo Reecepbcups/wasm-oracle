@@ -8,7 +8,8 @@ use crate::{
 
 pub const INFORMATION: Item<ContractInformationResponse> = Item::new("info");
 
-pub const ALLOWED_DATA: Map<&str, bool> = Map::new("allowed");
+// id: exponent
+pub const ALLOWED_DATA: Map<&str, u8> = Map::new("allowed");
 
 // Address, lastBlockSubmittedFor
 pub const ADDRESSES: Map<&str, u64> = Map::new("addresses");
@@ -54,17 +55,19 @@ pub fn get_twap_blocks_and_values(deps: Deps, id: &str) -> Vec<(u64, u64)> {
     // }
 }
 
-pub fn get_twap(deps: Deps, id: &str) -> u64 {
-    let twap = get_twap_blocks_and_values(deps, id);    
-    if twap.len() == 0 {
-        return 0;
+pub fn get_twap(deps: Deps, id: &str) -> (u64, u64) {
+    let twap = get_twap_blocks_and_values(deps, id);
+    if twap.is_empty() {
+        return (0, 0);
     }
 
     let mut sum = 0;
     for (_, value) in &twap {
         sum += value;
     }
-    sum / twap.len() as u64
+
+    // (value, number of values used to calulate)
+    (sum / twap.len() as u64, twap.len() as u64)
 }
 
 // If its time for a new TWAP value (saves average over time), we calculate average and save it

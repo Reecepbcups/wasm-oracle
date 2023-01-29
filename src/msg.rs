@@ -7,7 +7,9 @@ pub struct InstantiateMsg {
     pub data: Vec<Identifier>,
 
     pub admin: Option<String>,
-    pub max_submit_rate: Option<u64>, // 5 by default
+
+    // TODO: users should be able to submit as often as they want (within the limits of the average std deviation)
+    pub max_submit_rate: Option<u64>,
 
     pub max_downtime_allowed: Option<u64>, // 86400/6 = 14400 blocks = 24 hours default
 
@@ -70,7 +72,6 @@ pub enum QueryMsg {
 }
 
 // === RESPONSES ===
-
 #[cw_serde]
 pub struct ContractInformationResponse {
     pub admin: String,
@@ -88,6 +89,7 @@ pub struct ContractInformationResponse {
 #[cw_serde]
 pub struct ValueResponse<'a> {
     pub id: &'a str,
+    pub exponent: u8, // from Identifier from ALLOWED_DENOM
     pub value: u64,
 }
 #[cw_serde]
@@ -116,6 +118,7 @@ pub struct TWAPValues {
 #[cw_serde]
 pub struct TWAPValueResponse {
     pub twap_value: u64,
+    pub number_of_values: u64,
 }
 
 #[cw_serde]

@@ -15,7 +15,10 @@ use crate::state::{
     update_twap_if_it_is_time, ADDRESSES, ALLOWED_DATA, INFORMATION, VALUES,
 };
 
-use crate::helpers::check_duplicate_addresses;
+use crate::helpers::{
+    check_duplicate_addresses, is_address_allowed_to_send, is_data_id_allowed,
+    is_submission_within_rate_limit_rate,
+};
 
 // const CONTRACT_NAME: &str = "crates.io:oracle";
 // const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -64,53 +67,11 @@ pub fn instantiate(
     // save allowed data ids to state
     msg.data.iter().for_each(|data| {
         ALLOWED_DATA
-            .save(deps.storage, data.id.as_str(), &true)
+            .save(deps.storage, data.id.as_str(), &data.exponent)
             .unwrap();
     });
 
     Ok(Response::new().add_attribute("action", "instantiate"))
-}
-
-fn is_address_allowed_to_send(deps: &DepsMut, sender: &str) -> Result<(), ContractError> {
-    // permissioned impl. In the future we can change if the contract is permissionless
-    if ADDRESSES.may_load(deps.storage, sender)?.is_none() {
-        return Err(ContractError::Unauthorized {});
-    }
-    Ok(())
-}
-
-fn is_data_id_allowed(deps: &DepsMut, denom: &str) -> Result<(), ContractError> {
-    // permissioned impl. In the future we can change if the contract is permissionless
-    if ALLOWED_DATA.may_load(deps.storage, denom)?.is_none() {
-        return Err(ContractError::InvalidDenom {
-            denom: denom.to_string(),
-        });
-    }
-    Ok(())
-}
-
-fn is_submission_within_rate_limit_rate(
-    deps: &DepsMut,
-    wallet: &str,
-    current_height: u64,
-) -> Result<(), ContractError> {
-    // get last send
-    let last_send = ADDRESSES.may_load(deps.storage, wallet)?.unwrap_or(0);
-
-    if last_send == 0 {
-        return Ok(());
-    }
-
-    let max_submit_rate = INFORMATION.load(deps.storage)?.max_submit_block_rate;
-
-    let spread = current_height - last_send;
-
-    if spread < max_submit_rate {
-        return Err(ContractError::SubmittingTooQuickly {
-            blocks: max_submit_rate - spread,
-        });
-    }
-    Ok(())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -123,8 +84,9 @@ pub fn execute(
     match msg {
         ExecuteMsg::Submit { id, value } => {
             is_data_id_allowed(&deps, id.as_str())?;
+
             is_address_allowed_to_send(&deps, info.sender.as_str())?;
-            // Only allow send every X blocks (change via init msg)
+
             is_submission_within_rate_limit_rate(&deps, info.sender.as_str(), env.block.height)?;
 
             // check other values, if too far off (+/- X%), SLASH THEM / remove from list (make configurable). THen do not put value in.
@@ -148,35 +110,41 @@ pub fn execute(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {        
+    match msg {
         QueryMsg::Value { id, measure } => {
             let value: u64 = match measure.as_ref() {
                 "median" => get_median_value(deps, id.as_str()),
                 _ => get_average_value(deps, id.as_str()),
             };
 
+            // let info = INFORMATION.load(deps.storage)?;
+
+            let exponent = ALLOWED_DATA.load(deps.storage, id.as_str())?;
+
             return to_binary(&ValueResponse {
                 id: id.as_str(),
                 value,
+                exponent,
             });
         }
 
         QueryMsg::AllValues { id } => {
             let values = get_values(deps, id.as_str());
             let all_values_response = AllValuesResponse { values };
-            return to_binary(&all_values_response);
+            to_binary(&all_values_response)
         }
 
         QueryMsg::TwapValue { id } => {
             let value_avg = get_twap(deps, id.as_str());
-            return to_binary(&TWAPValueResponse {
-                twap_value: value_avg,
-            });
+            to_binary(&TWAPValueResponse {
+                twap_value: value_avg.0,
+                number_of_values: value_avg.1,
+            })
         }
 
         QueryMsg::AllTwapValues { id } => {
             let all_values = get_twap_blocks_and_values(deps, id.as_str());
-            return to_binary(&AllTwapValuesResponse { all_values });
+            to_binary(&AllTwapValuesResponse { all_values })
         }
 
         QueryMsg::WalletsValues { address } => {
@@ -209,7 +177,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 Err(_) => AddressesResponse { addresses: vec![] },
             };
 
-            return to_binary(&addresses_response);
+            to_binary(&addresses_response)
         }
     }
 }
