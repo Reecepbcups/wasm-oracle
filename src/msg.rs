@@ -40,9 +40,14 @@ pub enum ExecuteMsg {
     // DowntimeSlash { address: String }, // requires people to setup bots. They get a small % of funds if they find someone who was down for too long
 
     // all values are handled as value/1_000_000
-    Submit { id: String, value: u64 }, // on submit, they get a small amount of rewards from the contract
+    Submit { data: Vec<Data> }, // on submit, they get a small amount of rewards from the contract
 }
 
+#[cw_serde]
+pub struct Data {
+    pub id: String,
+    pub value: u64,
+}
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
