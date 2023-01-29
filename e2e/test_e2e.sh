@@ -31,7 +31,7 @@ function stop_docker {
 
 function start_docker {
     IMAGE_TAG=${2:-"12.0.0-alpha3"}
-    BLOCK_GAS_LIMIT=${GAS_LIMIT:-100000000} # mirrors mainnet
+    BLOCK_GAS_LIMIT=${GAS_LIMIT:-10000000} # mirrors mainnet
 
     echo "Building $IMAGE_TAG"
     echo "Configured Block Gas Limit: $BLOCK_GAS_LIMIT"
@@ -168,9 +168,9 @@ price=$(query_contract $ORACLE_CONTRACT '{"value":{"id":"JUNO","measure":"median
 # submit price (so $1 is 1_000_000. Then when we query, we just / 1_000_000 = 1)
 # only the addresses in 'addresses' can submit prices. 
 # TODO: add exponent to the price (6 for juno in this case) = $1USD
-wasm_cmd $ORACLE_CONTRACT '{"submit":{"id":"JUNO","value":1000000}}' "" show_log
-wasm_cmd $ORACLE_CONTRACT '{"submit":{"id":"JUNO","value":1002500}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
-wasm_cmd $ORACLE_CONTRACT '{"submit":{"id":"JUNO","value":1004000}}' "" show_log "$TX_FLAGS --keyring-backend test --from user3"
+wasm_cmd $ORACLE_CONTRACT '{"submit":{"data":[{"id":"JUNO","value":1000000}]}}' "" show_log
+wasm_cmd $ORACLE_CONTRACT '{"submit":{"data":[{"id":"JUNO","value":1001000}]}}' "" show_log "$TX_FLAGS --keyring-backend test --from other-user"
+wasm_cmd $ORACLE_CONTRACT '{"submit":{"data":[{"id":"JUNO","value":1004000}]}}' "" show_log "$TX_FLAGS --keyring-backend test --from user3"
 
 # normal current price query (current block average)
 price=$(query_contract $ORACLE_CONTRACT '{"value":{"id":"JUNO","measure":"median"}}' | jq -r '.data') && echo $price
@@ -181,7 +181,7 @@ price=$(query_contract $ORACLE_CONTRACT '{"value":{"id":"JUNO","measure":"averag
 # price=$(query_contract $ORACLE_CONTRACT '{"price":{"denom":"JUNO","measure":"median"}}' | jq -r '.data') && echo $price
 
 # todo; add check here to ensure if the price is siginifcantly above the others, its wrong and to slash
-wasm_cmd $ORACLE_CONTRACT '{"submit":{"id":"JUNO","value":1100005}}' "" show_log
+wasm_cmd $ORACLE_CONTRACT '{"submit":{"data":[{"id":"JUNO","value":2000000}]}}' "" show_log
 price=$(query_contract $ORACLE_CONTRACT '{"value":{"id":"JUNO","measure":"median"}}' | jq -r '.data') && echo $price
 price=$(query_contract $ORACLE_CONTRACT '{"value":{"id":"JUNO","measure":"average"}}' | jq -r '.data') && echo $price
 

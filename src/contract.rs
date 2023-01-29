@@ -11,13 +11,12 @@ use crate::msg::{
 
 use crate::state::{
     get_average_value, get_last_submit_block, get_median_value, get_twap,
-    get_twap_blocks_and_values, get_values, get_wallets_submitting_values,
-    update_twap_if_it_is_time, ADDRESSES, ALLOWED_DATA, INFORMATION, VALUES,
+    get_twap_blocks_and_values, get_twap_if_it_is_time, get_values, get_wallets_submitting_values,
+    ADDRESSES, ALLOWED_DATA, INFORMATION, TWAP, VALUES,
 };
 
 use crate::helpers::{
-    check_duplicate_addresses, is_address_allowed_to_send, is_data_id_allowed,
-    is_submission_within_rate_limit_rate,
+    check_duplicate_addresses, is_address_allowed_to_send, is_submission_within_rate_limit_rate,
 };
 
 // const CONTRACT_NAME: &str = "crates.io:oracle";
@@ -74,6 +73,15 @@ pub fn instantiate(
     Ok(Response::new().add_attribute("action", "instantiate"))
 }
 
+fn admin_error_check(deps: Deps, info: MessageInfo) -> Result<(), ContractError> {
+    let contract_info = INFORMATION.load(deps.storage)?;
+    if contract_info.admin != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
@@ -82,28 +90,105 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Submit { id, value } => {
-            is_data_id_allowed(&deps, id.as_str())?;
-
+        // TODO: this is so gas computational. Is it even feasible to have TWAP? Maybe we compute TWAP on query?
+        ExecuteMsg::Submit { data } => {
+            // is_data_id_allowed(&deps, id.as_str())?;
             is_address_allowed_to_send(&deps, info.sender.as_str())?;
-
-            is_submission_within_rate_limit_rate(&deps, info.sender.as_str(), env.block.height)?;
+            is_submission_within_rate_limit_rate(&deps, info.sender.as_str(), env.block.height)?; // remove ?
 
             // check other values, if too far off (+/- X%), SLASH THEM / remove from list (make configurable). THen do not put value in.
             // value_difference()
 
             // require all ids to be submitted on?
 
-            VALUES.save(deps.storage, (id.as_str(), info.sender.as_str()), &value)?;
+            // VALUES.save(deps.storage, (id.as_str(), info.sender.as_str()), &value)?;
+
+            // VALUES.update(deps.storage, (info.sender.as_str(), data.id.as_str()), |old| -> StdResult<_> {
+            //     Ok(data.value)
+            // })?;
+
+            // iterate over data and save each to deps.storage without moving deps.storage
+            data.iter().for_each(|data| {
+                VALUES
+                    .save(
+                        deps.storage,
+                        (data.id.as_str(), info.sender.as_str()),
+                        &data.value,
+                    )
+                    .unwrap();
+            });
 
             ADDRESSES.update(deps.storage, info.sender.as_str(), |_| -> StdResult<_> {
                 Ok(env.block.height)
             })?;
 
-            // update twap if it is time. The average of all is saved here
-            update_twap_if_it_is_time(deps, &id, env.block.height)?;
+            let mut contract_info = INFORMATION.load(deps.storage)?;
+            data.iter().for_each(|data| {
+                if let Ok(twap) = get_twap_if_it_is_time(
+                    deps.as_ref(),
+                    &contract_info,
+                    &data.id,
+                    env.block.height,
+                ) {
+                    if twap.is_none() {
+                        return;
+                    }
+
+                    // update twap if it is time. The average of all is saved here
+                    crate::state::TWAP
+                        .save(deps.storage, data.id.as_str(), &twap.unwrap().0)
+                        .unwrap();
+
+                    // update info
+                    contract_info.twap_last_save_block_actual = env.block.height;
+                    INFORMATION.save(deps.storage, &contract_info).unwrap();
+                }
+            });
 
             Ok(Response::new().add_attribute("action", "submit_data"))
+        }
+
+        // ADMIN MESSAGES
+        ExecuteMsg::AddAddress { address } => {
+            admin_error_check(deps.as_ref(), info)?;
+
+            deps.api.addr_validate(&address)?;
+
+            ADDRESSES.save(deps.storage, address.as_str(), &0).unwrap();
+
+            Ok(Response::new().add_attribute("action", "add_address"))
+        }
+
+        ExecuteMsg::RemoveAddress { address } => {
+            admin_error_check(deps.as_ref(), info)?;
+
+            deps.api.addr_validate(&address)?;
+
+            ADDRESSES.remove(deps.storage, address.as_str());
+
+            Ok(Response::new().add_attribute("action", "remove_address"))
+        }
+
+        ExecuteMsg::AddId { id, exponent } => {
+            admin_error_check(deps.as_ref(), info)?;
+
+            ALLOWED_DATA.save(deps.storage, id.as_str(), &exponent)?;
+
+            Ok(Response::new().add_attribute("action", "add_id"))
+        }
+
+        ExecuteMsg::RemoveId { id } => {
+            admin_error_check(deps.as_ref(), info)?;
+
+            ALLOWED_DATA.remove(deps.storage, id.as_str());
+
+            // clear twap and values
+            TWAP.remove(deps.storage, id.as_str());
+
+            // TODO: remove all value matches as well in the futuer from the map => del (id, _)
+            // VALUES.remove(deps.storage, (id.as_str(), _));
+
+            Ok(Response::new().add_attribute("action", "remove_id"))
         }
     }
 }

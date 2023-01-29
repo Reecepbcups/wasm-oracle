@@ -1,4 +1,4 @@
-use cosmwasm_std::{Deps, DepsMut};
+use cosmwasm_std::Deps;
 use cw_storage_plus::{Item, Map};
 
 use crate::{
@@ -12,7 +12,7 @@ pub const INFORMATION: Item<ContractInformationResponse> = Item::new("info");
 pub const ALLOWED_DATA: Map<&str, u8> = Map::new("allowed");
 
 // Address, lastBlockSubmittedFor
-pub const ADDRESSES: Map<&str, u64> = Map::new("addresses");
+pub const ADDRESSES: Map<&str, u64> = Map::new("addrs");
 
 // Ex: (denom, address): price
 pub const VALUES: Map<(&str, &str), u64> = Map::new("values");
@@ -71,19 +71,22 @@ pub fn get_twap(deps: Deps, id: &str) -> (u64, u64) {
 }
 
 // If its time for a new TWAP value (saves average over time), we calculate average and save it
-pub fn update_twap_if_it_is_time(deps: DepsMut, id: &str, block: u64) -> Result<(), ContractError> {
-    let mut info = INFORMATION.load(deps.storage)?;
-
+pub fn get_twap_if_it_is_time(
+    deps: Deps,
+    info: &ContractInformationResponse,
+    id: &str,
+    block: u64,
+) -> Result<Option<(TWAPValues, u64)>, ContractError> {
     let distance_between_saves = info.twap_distance_between_saves; // ex: 50
     let last_save_block = info.twap_last_save_block_actual; // ex: block 5,650,200
 
     if block < last_save_block + distance_between_saves {
-        return Ok(());
+        return Ok(None);
     }
 
-    let current_average = get_average_value(deps.as_ref(), id);
+    let current_average = get_average_value(deps, id);
 
-    let mut twap = get_twap_blocks_and_values(deps.as_ref(), id);
+    let mut twap = get_twap_blocks_and_values(deps, id);
     twap.push((block, current_average));
 
     // if twap.len() > max_blocks_length, remove the first element
@@ -97,13 +100,13 @@ pub fn update_twap_if_it_is_time(deps: DepsMut, id: &str, block: u64) -> Result<
         values: twap.iter().map(|x| x.1).collect(),
     };
 
-    TWAP.save(deps.storage, id, &twap)?;
+    // TWAP.save(deps.storage, id, &twap)?;
 
-    // update last_save_block time since we updated
-    info.twap_last_save_block_actual = block;
-    INFORMATION.save(deps.storage, &info)?;
+    // // update last_save_block time since we updated
+    // info.twap_last_save_block_actual = block;
+    // INFORMATION.save(deps.storage, &info)?;
 
-    Ok(())
+    Ok(Some((twap, block)))
 }
 
 // get all values for a id by the first key in the tuple

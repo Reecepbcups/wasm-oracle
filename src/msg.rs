@@ -15,32 +15,26 @@ pub struct InstantiateMsg {
 
     // TWAP
     pub twap_max_blocks_length: Option<u64>, // # of blocks to store for the TWAP (average)
-    pub twap_distance_between_saves: Option<u64>, // # of blocks to wait between saving the TWAP. Default 50
-                                                  // 250 * 20 = 5000 blocks * 6 seconds = 5 hours
-}
-
-#[cw_serde]
-pub struct Identifier {
-    pub id: String,
-    pub exponent: u8, // ex: 6 = 10**6. So on query, divide by 10**6 to get the decimal representation
+    pub twap_distance_between_saves: Option<u64>, // # of blocks to wait between saving the TWAP. You want this to be longer to get done more with less
 }
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    // Admin based
-    // AddAddress { address: String },
-    // RemoveAddress { address: String },
-    // AddId { id: String },
-    // RemoveId { id: String },
+    Submit { data: Vec<Data> }, // on submit, they get a small amount of rewards from the contract
 
+    // Admin based
+    AddAddress { address: String },
+    RemoveAddress { address: String },
+    AddId { id: String, exponent: u8 },
+    RemoveId { id: String },
     // permissionless future
     // Register {}   (requires funds to be sent as well, set via config)
 
     // Either slash their holdings OR a gov msg to slash validators if its a validator oracle (like x/oracle from Terra)
     // DowntimeSlash { address: String }, // requires people to setup bots. They get a small % of funds if they find someone who was down for too long
+    // ^ if wallet block is 0, don't slash them yet?
 
     // all values are handled as value/1_000_000
-    Submit { id: String, value: u64 }, // on submit, they get a small amount of rewards from the contract
 }
 
 #[cw_serde]
@@ -69,6 +63,25 @@ pub enum QueryMsg {
 
     #[returns(ContractInformationResponse)]
     ContractInfo {},
+}
+
+// === Messages / Structures for State ====
+#[cw_serde]
+pub struct TWAPValues {
+    pub blocks: Vec<u64>,
+    pub values: Vec<u64>,
+}
+
+#[cw_serde]
+pub struct Data {
+    pub id: String,
+    pub value: u64,
+}
+
+#[cw_serde]
+pub struct Identifier {
+    pub id: String,
+    pub exponent: u8, // ex: 6 = 10**6. So on query, divide by 10**6 to get the decimal representation
 }
 
 // === RESPONSES ===
@@ -106,12 +119,6 @@ pub struct WalletsValuesResponse {
 
 #[cw_serde]
 pub struct AllValuesResponse {
-    pub values: Vec<u64>,
-}
-
-#[cw_serde]
-pub struct TWAPValues {
-    pub blocks: Vec<u64>,
     pub values: Vec<u64>,
 }
 

@@ -9,7 +9,7 @@ const DENOM = "ujunox";
 const PREFIX = "juno";
 const GAS = GasPrice.fromString(`0.003${DENOM}`);
 
-const CONTRACT_ADDRESS = "juno14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9skjuwg8";
+const CONTRACT_ADDRESS = "juno1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq68ev2p";
 
 export const rpcEndpoint = "http://localhost:26657";
 
@@ -36,9 +36,20 @@ async function submit_tx(client: SigningCosmWasmClient, account_addr, execute_ms
 
     if (res) {
         console.log("tx_hash: ", res.transactionHash);
-        console.log("tx_success: ", res.height);
+        console.log("height: ", res.height);
         console.log("logs: ", res.logs[0].log);
     }
+}
+
+interface Data {
+    id: string;
+    value: number;
+}
+
+// coingecko to denom loopup map
+const COINGECKO_DENOM_MAP = {
+    "juno-network": "JUNO",
+    "osmosis": "OSMO"
 }
 
 // async main function
@@ -53,20 +64,29 @@ async function main() {
         timeout: 10000,
         autoRetry: true,
     });
-    const prices = await coingecko.simplePrice({vs_currencies: 'usd', ids: 'juno-network'});
-    console.log(prices);
-    let price = Number(prices['juno-network'].usd) * 10**6;
+    const prices = await coingecko.simplePrice({vs_currencies: 'usd', ids: 'juno-network,osmosis'});
+    // console.log(prices);
+    // let price = Number(prices['juno-network'].usd) * 10**6;
 
-    console.log(price);
+    
+    // [ { id: 'JUNO', value: 1480000 }, { id: 'OSMO', value: 972506 } ]
+    let data_arr: Data[] = [] 
+
+    for (const key of Object.keys(prices)) {
+        let price = Number(prices[key].usd) * 10**6;
+        data_arr.push({
+            id: COINGECKO_DENOM_MAP[key],
+            value: price
+        });
+    }
+
+    console.log(data_arr);
 
     const client = await SigningCosmWasmClient.connectWithSigner(rpcEndpoint, data.wallet, config);
 
     // {"submit":{"id":"JUNO","value":1000000}}
     let execute_msg = {
-        submit: {
-            id: "JUNO",
-            value: price
-        }
+        submit: { data: data_arr }
     }
 
     await submit_tx(client, data.account.address, execute_msg);
@@ -77,8 +97,7 @@ async function main() {
             address: data.account.address
         }
     });
-
-    console.log("query: ", query);
+    console.log("wallets_values query: ", query);
 }
 
 main()
