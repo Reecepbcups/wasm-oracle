@@ -1,0 +1,21 @@
+[package]
+name = "price-feeder"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+# [workspace]
+# members = ["../"]
+# exclude = ["crates/foo", "path/to/other"]
+
+[dependencies]
+coingecko = "1.0.1"
+tokio = "1.24.2"
+
+# serde = "1.0.152"
+serde_json = "1.0.91"
+
+cosmrs = {version = "0.11.0", features = ["cosmwasm", "rpc", "bip32"]}
+
+oracle = { path = "../" }

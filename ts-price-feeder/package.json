@@ -1,0 +1,22 @@
+{
+  "name": "ts-price-feeder",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "start": "ts-node src/app.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@cosmjs/stargate": "^0.28.13",
+    "axios": "0.27.2",
+    "coingecko-api-v3": "^0.0.19",
+    "cosmwasm": "1.1.1",
+    "fs": "^0.0.1-security"
+  },
+  "devDependencies": {
+    "typescript": "^4.9.4"
+  }
+}
