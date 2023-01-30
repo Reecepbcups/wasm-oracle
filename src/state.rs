@@ -90,7 +90,7 @@ pub fn get_twap_if_it_is_time(
     twap.push((block, current_average));
 
     // if twap.len() > max_blocks_length, remove the first element
-    if twap.len() > info.twap_max_blocks_length.try_into().unwrap() {
+    if twap.len() > info.twap_max_blocks_length.try_into().unwrap_or_default() {
         twap.remove(0);
     }
 
@@ -115,7 +115,7 @@ pub fn get_values(deps: Deps, id: &str) -> Vec<u64> {
         .prefix(id)
         .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
         .into_iter()
-        .map(|x| x.unwrap().1)
+        .map(|x| x.unwrap_or_default().1)
         .collect();
 
     v
@@ -131,7 +131,7 @@ pub fn get_last_submit_block(deps: Deps, address: &str) -> u64 {
 
 pub fn get_median_value(deps: Deps, id: &str) -> u64 {
     let mut v = get_values(deps, id);
-    v.sort();
+    v.sort_unstable();
     let len = v.len();
     if len == 0 {
         return 0;

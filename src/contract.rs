@@ -33,11 +33,16 @@ pub fn instantiate(
 
     // if addresses.length == 0, its permissionless
     msg.addresses.iter().for_each(|address| {
-        deps.api.addr_validate(address).unwrap();
+        // match deps.api.addr_validate(address) {
+        //     Ok(_) => {}
+        //     Err(e) => {
+        //         return Err(ContractError::Std(e)
+        //     }
+        // }
 
         ADDRESSES
             .save(deps.storage, address.as_str(), &env.block.height)
-            .unwrap();
+            .unwrap_or_default();
     });
 
     // see if msg.admin is set, if not, use info.sender
@@ -108,22 +113,54 @@ pub fn execute(
             // })?;
 
             // iterate over data and save each to deps.storage without moving deps.storage
-            data.iter().for_each(|data| {
+            // data.iter().for_each(|data| {
+            //     VALUES
+            //         .save(
+            //             deps.storage,
+            //             (data.id.as_str(), info.sender.as_str()),
+            //             &data.value,
+            //         )
+            //         .unwrap();
+            // });
+
+            for data in data.iter() {
                 VALUES
                     .save(
                         deps.storage,
                         (data.id.as_str(), info.sender.as_str()),
                         &data.value,
                     )
-                    .unwrap();
-            });
+                    .unwrap_or_default();
+            }
 
             ADDRESSES.update(deps.storage, info.sender.as_str(), |_| -> StdResult<_> {
                 Ok(env.block.height)
             })?;
 
             let mut contract_info = INFORMATION.load(deps.storage)?;
-            data.iter().for_each(|data| {
+            // data.iter().for_each(|data| {
+            //     if let Ok(twap) = get_twap_if_it_is_time(
+            //         deps.as_ref(),
+            //         &contract_info,
+            //         &data.id,
+            //         env.block.height,
+            //     ) {
+            //         if twap.is_none() {
+            //             return;
+            //         }
+
+            //         // update twap if it is time. The average of all is saved here
+            //         crate::state::TWAP
+            //             .save(deps.storage, data.id.as_str(), &twap.unwrap().0)
+            //             .unwrap();
+
+            //         // update info
+            //         contract_info.twap_last_save_block_actual = env.block.height;
+            //         INFORMATION.save(deps.storage, &contract_info).unwrap();
+            //     }
+            // });
+
+            for data in data.iter() {
                 if let Ok(twap) = get_twap_if_it_is_time(
                     deps.as_ref(),
                     &contract_info,
@@ -131,7 +168,7 @@ pub fn execute(
                     env.block.height,
                 ) {
                     if twap.is_none() {
-                        return;
+                        continue;
                     }
 
                     // update twap if it is time. The average of all is saved here
@@ -143,7 +180,7 @@ pub fn execute(
                     contract_info.twap_last_save_block_actual = env.block.height;
                     INFORMATION.save(deps.storage, &contract_info).unwrap();
                 }
-            });
+            }
 
             Ok(Response::new().add_attribute("action", "submit_data"))
         }

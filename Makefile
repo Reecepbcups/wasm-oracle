@@ -23,3 +23,22 @@ test:
 
 test-e2e:
 	sh ./e2e/test_e2e.sh
+
+clippy-pedantic:	
+	cargo clippy -- -W clippy::pedantic -W clippy::missing-errors-doc -W clippy::doc-markdown -W clippy::module-name-repetitions
+clippy-format:	
+	cargo clippy -- -W clippy::useless_format
+clippy-correctness:	
+	cargo clippy -- -W clippy::correctness
+clippy-suspicious:	
+	cargo clippy -- -W clippy::suspicious
+clippy-style:	
+	cargo clippy -- -W clippy::style
+clippy-perf:	
+	cargo clippy -- -W clippy::perf
+clippy-complexity:	
+	cargo clippy -- -W clippy::complexity
+clippy-new:	
+	cargo clippy -- -W clippy::nursery	
+
+# -W clippy::missing-errors-doc
