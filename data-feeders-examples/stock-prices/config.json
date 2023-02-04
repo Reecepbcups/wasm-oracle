@@ -1,0 +1,10 @@
+{
+    "yahoo_finance": {
+        "enabled": true,
+        "tickers": ["TSLA", "AAPL"]
+    },
+    "google_finance": {
+        "enabled": true,
+        "tickers": ["TSLA", "AAPL"]
+    }
+}
