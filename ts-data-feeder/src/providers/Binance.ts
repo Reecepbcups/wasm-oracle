@@ -2,9 +2,6 @@ import { Data, Provider, Average, Averages } from '../types';
 
 // https://docs.binance.us/#get-candlestick-data
 
-
-
-
 // config
 const REQUESTED_SYMBOLS = { "ATOM": ["ATOMUSD", "ATOMUSDT"] }
 
@@ -30,9 +27,8 @@ export class BinanceProvider implements Provider {
                 id: d.symbol,
                 value: Number(d.price) * 10 ** 6
             }));  
-        
-        // appends the real symbol to the data array.
-        // So ATOMUSDT becomes ATOM. This means there ARE dupluicates in the array.
+                
+        // ATOMUSDT becomes ATOM. This means there ARE duplicates in the array.
         // we sort those in the main function after calling all providers
         for(const price of d) {
             for (const [k, v] of Object.entries(REQUESTED_SYMBOLS)) {
