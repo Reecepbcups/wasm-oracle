@@ -3,7 +3,10 @@ import { CosmWasmClient, SigningCosmWasmClient, Secp256k1HdWallet, GasPrice, coi
 // import * as fs from 'fs';
 import { getAccountFromMnemonic, getBalance } from "./helpers";
 
-import { CoinGeckoClient } from 'coingecko-api-v3';
+import {Averages, Data} from './types';
+
+import {CoinGeckoProvider} from './providers/Coingecko';
+import {BinanceProvider} from './providers/Binance';
 
 const DENOM = "ujunox";
 const PREFIX = "juno";
@@ -41,16 +44,6 @@ async function submit_tx(client: SigningCosmWasmClient, account_addr, execute_ms
     }
 }
 
-interface Data {
-    id: string;
-    value: number;
-}
-
-// coingecko to denom loopup map
-const COINGECKO_DENOM_MAP = {
-    "juno-network": "JUNO",
-    "osmosis": "OSMO"
-}
 
 // async main function
 async function main() {
@@ -60,44 +53,65 @@ async function main() {
     console.log("address: ", data.account.address);
     console.log("Balance: ", balance);
 
-    const coingecko = new CoinGeckoClient({
-        timeout: 10000,
-        autoRetry: true,
-    });
-    const prices = await coingecko.simplePrice({vs_currencies: 'usd', ids: 'juno-network,osmosis'});
-    // console.log(prices);
-    // let price = Number(prices['juno-network'].usd) * 10**6;
 
-    
-    // [ { id: 'JUNO', value: 1480000 }, { id: 'OSMO', value: 972506 } ]
-    let data_arr: Data[] = [] 
+    let providers = [
+        new CoinGeckoProvider(), 
+        new BinanceProvider()
+    ];
 
-    for (const key of Object.keys(prices)) {
-        let price = Number(prices[key].usd) * 10**6;
+    let all_data: Data[] = [];
+    for (const provider of providers) {
+        let data_arr = await provider.getPrices();
+        all_data = all_data.concat(data_arr);
+    }
+    // console.log("all_data: ", all_data);
+
+    // loop through all_data and average the prices for each id
+    let prices_avg: Averages = {};
+    for (const price of all_data) {        
+        let total = price.value;
+        let count = 1;
+        
+        if (prices_avg[price.id]) {
+            total += prices_avg[price.id].total;
+            count += prices_avg[price.id].count;
+        }
+
+        prices_avg[price.id] = {total, count}
+    }
+    // console.log("prices_avg: ", prices_avg);
+        
+    let data_arr: Data[] = [];
+    for (const [k, v] of Object.entries(prices_avg)) {
         data_arr.push({
-            id: COINGECKO_DENOM_MAP[key],
-            value: price
+            id: k,
+            value: v.total / v.count
         });
     }
 
-    console.log(data_arr);
+    // data_arr:  [
+    //     { id: 'JUNO', value: 1580000 },
+    //     { id: 'OSMO', value: 1100000 },
+    //     { id: 'ATOM', value: 14940500 }
+    //   ]
+    console.log("data_arr: ", data_arr);
 
-    const client = await SigningCosmWasmClient.connectWithSigner(rpcEndpoint, data.wallet, config);
+    // const client = await SigningCosmWasmClient.connectWithSigner(rpcEndpoint, data.wallet, config);
 
-    // {"submit":{"id":"JUNO","value":1000000}}
-    let execute_msg = {
-        submit: { data: data_arr }
-    }
+    // // {"submit":{"id":"JUNO","value":1000000}}
+    // let execute_msg = {
+    //     submit: { data: data_arr }
+    // }
 
-    await submit_tx(client, data.account.address, execute_msg);
+    // await submit_tx(client, data.account.address, execute_msg);
     
 
-    let query = await client.queryContractSmart(CONTRACT_ADDRESS, {
-        wallets_values: {
-            address: data.account.address
-        }
-    });
-    console.log("wallets_values query: ", query);
+    // let query = await client.queryContractSmart(CONTRACT_ADDRESS, {
+    //     wallets_values: {
+    //         address: data.account.address
+    //     }
+    // });
+    // console.log("wallets_values query: ", query);
 }
 
 main()
