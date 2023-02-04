@@ -105,22 +105,22 @@ async function main() {
     }
     console.log("data_arr: ", data_arr);
 
-    // const client = await SigningCosmWasmClient.connectWithSigner(rpcEndpoint, data.wallet, config);
+    const client = await SigningCosmWasmClient.connectWithSigner(rpcEndpoint, data.wallet, config);
 
-    // // {"submit":{"id":"JUNO","value":1000000}}
-    // let execute_msg = {
-    //     submit: { data: data_arr }
-    // }
+    // {"submit":{"id":"JUNO","value":1000000}}
+    let execute_msg = {
+        submit: { data: data_arr }
+    }
 
-    // await submit_tx(client, data.account.address, execute_msg);
+    await submit_tx(client, data.account.address, execute_msg);
     
 
-    // let query = await client.queryContractSmart(CONTRACT_ADDRESS, {
-    //     wallets_values: {
-    //         address: data.account.address
-    //     }
-    // });
-    // console.log("wallets_values query: ", query);
+    let query = await client.queryContractSmart(CONTRACT_ADDRESS, {
+        wallets_values: {
+            address: data.account.address
+        }
+    });
+    console.log("wallets_values query: ", query);
 }
 
 main()
