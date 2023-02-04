@@ -1,4 +1,15 @@
 {
+    "network": {
+        "denom": "ujunox",
+        "prefix": "juno",
+        "rpc_endpoint": "http://localhost:26657",
+        "chain_id": "testing",
+        "contract_addr": "juno1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq68ev2p",
+        "gas_prices": "0.003",
+        "fee_amt": 200000,
+        "feeder_mnemonic": "clip hire initial neck maid actor venue client foam budget lock catalog sweet steak waste crater broccoli pipe steak sister coyote moment obvious choose"
+    },
+    
     "binance": {
         "enabled": true,
         "use_us_endpoint": true,

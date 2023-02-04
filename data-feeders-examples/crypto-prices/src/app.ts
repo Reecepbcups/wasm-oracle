@@ -11,25 +11,27 @@ import {CoinbaseProvider} from './providers/Coinbase';
 import {OsmosisProvider} from './providers/Osmosis';
 import {WyndDexProvider} from './providers/WyndDex';
 
-const DENOM = "ujunox";
-const PREFIX = "juno";
-const GAS = GasPrice.fromString(`0.003${DENOM}`);
+import {default as config} from '../config.json';
 
-const CONTRACT_ADDRESS = "juno1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq68ev2p";
+const DENOM = config.network.denom;
+const PREFIX = config.network.prefix;
+const GAS = GasPrice.fromString(`${config.network.gas_prices}${DENOM}`);
 
-export const rpcEndpoint = "http://localhost:26657";
+const CONTRACT_ADDRESS = config.network.contract_addr;
 
-const config = {
-    chainId: "testing",
-    rpcEndpoint: rpcEndpoint,
-    prefix: "juno",
-    gasPrice: GAS,
-};
+export const rpcEndpoint = config.network.rpc_endpoint;
 
-const fee = calculateFee(200_000, config.gasPrice);
+const fee = calculateFee(200_000, GAS);
 
 // juno16g2rahf5846rxzp3fwlswy08fz8ccuwk03k57y
-const mnemonic = "clip hire initial neck maid actor venue client foam budget lock catalog sweet steak waste crater broccoli pipe steak sister coyote moment obvious choose";
+const mnemonic = config.network.feeder_mnemonic;
+
+const cw_config = {
+    chainId: config.network.chain_id,
+    rpcEndpoint: rpcEndpoint,
+    prefix: PREFIX,
+    gasPrice: GAS,
+};
 
 
 async function submit_tx(client: SigningCosmWasmClient, account_addr, execute_msg) {    
@@ -106,7 +108,7 @@ async function main() {
     }
     console.log("data_arr: ", data_arr);
 
-    const client = await SigningCosmWasmClient.connectWithSigner(rpcEndpoint, data.wallet, config);
+    const client = await SigningCosmWasmClient.connectWithSigner(rpcEndpoint, data.wallet, cw_config);
     // {"submit":{"id":"JUNO","value":1000000}}
     let execute_msg = {
         submit: { data: data_arr }

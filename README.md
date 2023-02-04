@@ -6,9 +6,9 @@ To submit data, you just have to modify the data-feeder application with the spe
 
 Example use cases:
 
-- Token & Commodity prices
+- [Crypto Token Prices (Typescript)](./data-feeders-examples/crypto-prices/)
+- [Stock prices (Typescript)](./data-feeders-examples/stock-prices/)
 - Sports Game points
 - Weather
-- Stock prices
 
 All of these are possible with this oracle contract.
