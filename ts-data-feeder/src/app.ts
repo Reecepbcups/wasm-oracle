@@ -65,14 +65,20 @@ async function main() {
         new WyndDexProvider(),
     ];
 
+    // Gets all data in an array (duplicate ids)
     let all_data: Data[] = [];
-    for (const provider of providers) {
-        let data_arr = await provider.getPrices();
-        all_data = all_data.concat(data_arr);
-    }
-    // console.log("all_data: ", all_data);
 
-    // loop through all_data and average the prices for each id
+    const promises = providers.map(provider => provider.getPrices());
+    const results = await Promise.allSettled(promises);
+    results.forEach(result => {
+        if (result.status === 'fulfilled') {
+            all_data = all_data.concat(result.value);
+        } else {
+            console.log("Error: ", result.reason);
+        }
+    });
+
+    // Loop over all the data and sum it all up
     let prices_avg: Averages = {};
     for (const price of all_data) {        
         let total = price.value;
@@ -88,18 +94,15 @@ async function main() {
     // console.log("prices_avg: ", prices_avg);
         
     let data_arr: Data[] = [];
+    // data_arr = [{ id: 'JUNO', value: 1580000 },{ id: 'OSMO', value: 1100000 },{ id: 'ATOM', value: 14940500 }]
+
+    // Iterate over the averages, calulate, and push to data_arr
     for (const [k, v] of Object.entries(prices_avg)) {
         data_arr.push({
             id: k,
             value: Math.round(v.total / v.count)
         });
     }
-
-    // data_arr:  [
-    //     { id: 'JUNO', value: 1580000 },
-    //     { id: 'OSMO', value: 1100000 },
-    //     { id: 'ATOM', value: 14940500 }
-    //   ]
     console.log("data_arr: ", data_arr);
 
     // const client = await SigningCosmWasmClient.connectWithSigner(rpcEndpoint, data.wallet, config);
