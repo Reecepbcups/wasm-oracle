@@ -59,14 +59,15 @@ async function main() {
 
     let providers = [
         new CoinGeckoProvider(), 
+
         new BinanceProvider(),
         new CoinbaseProvider(),
         new OsmosisProvider(),
         new WyndDexProvider(),
-    ];
+    ].filter(provider => provider.isEnabled());
 
     // Gets all data in an array (duplicate ids)
-    let all_data: Data[] = [];
+    let all_data: Data[] = [];    
 
     const promises = providers.map(provider => provider.getPrices());
     const results = await Promise.allSettled(promises);
@@ -105,22 +106,18 @@ async function main() {
     }
     console.log("data_arr: ", data_arr);
 
-    const client = await SigningCosmWasmClient.connectWithSigner(rpcEndpoint, data.wallet, config);
-
-    // {"submit":{"id":"JUNO","value":1000000}}
-    let execute_msg = {
-        submit: { data: data_arr }
-    }
-
-    await submit_tx(client, data.account.address, execute_msg);
-    
-
-    let query = await client.queryContractSmart(CONTRACT_ADDRESS, {
-        wallets_values: {
-            address: data.account.address
-        }
-    });
-    console.log("wallets_values query: ", query);
+    // const client = await SigningCosmWasmClient.connectWithSigner(rpcEndpoint, data.wallet, config);
+    // // {"submit":{"id":"JUNO","value":1000000}}
+    // let execute_msg = {
+    //     submit: { data: data_arr }
+    // }
+    // await submit_tx(client, data.account.address, execute_msg);
+    // let query = await client.queryContractSmart(CONTRACT_ADDRESS, {
+    //     wallets_values: {
+    //         address: data.account.address
+    //     }
+    // });
+    // console.log("wallets_values query: ", query);
 }
 
 main()

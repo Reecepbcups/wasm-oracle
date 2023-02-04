@@ -6,6 +6,7 @@ export interface Data {
 export interface Provider {
     name: string;
     getPrices(): Promise<Data[]>;    
+    isEnabled(): boolean;
 }
 
 export interface Average {

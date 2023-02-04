@@ -1,17 +1,23 @@
-import { Data, Provider, Average, Averages } from '../types';
+import { Data, Provider } from '../types';
 
 // https://api-osmosis.imperator.co/swagger/
-// config
-const REQUESTED_SYMBOLS = ["ATOM", "OSMO", "JUNO"]
 
-const RestHost = "https://api-osmosis.imperator.co";
-const RestPath = "/tokens/v2/%TICKER%"
+import {default as config} from '../../config.json';
+const CONFIG = config.osmosis;
+
+const RestHost = CONFIG.rest_host;
+const RestPath = CONFIG.rest_path;
+const REQUESTED_SYMBOLS = CONFIG.symbols;
 
 export class OsmosisProvider implements Provider {
     name: string;
 
     constructor() {
         this.name = "Osmosis DEX";
+    }
+
+    isEnabled(): boolean {
+        return CONFIG.enabled;
     }
 
     async getPrices(): Promise<Data[]> {

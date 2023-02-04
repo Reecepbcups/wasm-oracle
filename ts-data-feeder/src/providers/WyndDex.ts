@@ -1,20 +1,21 @@
 import { Data, Provider, Average, Averages } from '../types';
 
-// config
-const REQUESTED_SYMBOLS = { 
-    "JUNO": ["ujuno"],  
-    "OSMO": ["ibc/ED07A3391A112B175915CD8FAF43A2DA8E4790EDE12566649D0C2F97716B8518"], 
-    "ATOM": ["ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9"]
-}
+import {default as config} from '../../config.json';
+const CONFIG = config.wynd;
 
-const RestHost = "https://api.wynddao.com";
-const RestPath = "/assets/prices"
+const RestHost = CONFIG.rest_host;
+const RestPath = CONFIG.rest_path;
+const REQUESTED_SYMBOLS = CONFIG.symbols;
 
 export class WyndDexProvider implements Provider {
     name: string;
 
     constructor() {
-        this.name = "Coinbase";
+        this.name = "WyndDex (Juno)";
+    }
+
+    isEnabled(): boolean {
+        return CONFIG.enabled;
     }
 
     async getPrices(): Promise<Data[]> {

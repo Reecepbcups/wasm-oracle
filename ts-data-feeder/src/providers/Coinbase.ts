@@ -1,17 +1,23 @@
-import { Data, Provider, Average, Averages } from '../types';
+import { Data, Provider } from '../types';
 
-// config
-const REQUESTED_SYMBOLS = { "ATOM": ["ATOM-USD", "ATOM-USDT"] }
+import {default as config} from '../../config.json';
+
+const CONFIG = config.coinbase;
 
 // https://api.exchange.coinbase.com/products/ATOM-USDT/ticker
-const RestHost = "https://api.exchange.coinbase.com";
-const RestPath = "/products/%PAIR%/ticker"
+const RestHost = CONFIG.rest_host;
+const RestPath = CONFIG.rest_path;
+const REQUESTED_SYMBOLS = CONFIG.symbols;
 
 export class CoinbaseProvider implements Provider {
     name: string;
 
     constructor() {
         this.name = "Coinbase";
+    }
+
+    isEnabled(): boolean {
+        return CONFIG.enabled;
     }
 
     async getPrices(): Promise<Data[]> {            

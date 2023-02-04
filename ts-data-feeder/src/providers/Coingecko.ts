@@ -1,14 +1,14 @@
 // NOTE: this is purely an example, you should NOT use coingecko in a production setting...
 
 import { CoinGeckoClient } from 'coingecko-api-v3';
-
 import { Data, Provider } from '../types';
 
-// config file
-const REQUESTED_SYMBOLS = {
-    "juno-network": "JUNO",
-    "osmosis": "OSMO"
-}
+import {default as config} from '../../config.json';
+
+const CONFIG = config.coingecko;
+const REQUESTED_SYMBOLS = CONFIG.symbols;
+
+// https://api.exchange.coinbase.com/products/ATOM-USDT/ticker
 
 export class CoinGeckoProvider implements Provider {
     name: string;
@@ -20,6 +20,10 @@ export class CoinGeckoProvider implements Provider {
             timeout: 10000,
             autoRetry: true,
         });
+    }
+
+    isEnabled(): boolean {
+        return CONFIG.enabled;
     }
 
     async getPrices(): Promise<Data[]> {
