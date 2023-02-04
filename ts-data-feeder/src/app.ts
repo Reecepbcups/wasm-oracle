@@ -7,6 +7,9 @@ import {Averages, Data} from './types';
 
 import {CoinGeckoProvider} from './providers/Coingecko';
 import {BinanceProvider} from './providers/Binance';
+import {CoinbaseProvider} from './providers/Coinbase';
+import {OsmosisProvider} from './providers/Osmosis';
+import {WyndDexProvider} from './providers/WyndDex';
 
 const DENOM = "ujunox";
 const PREFIX = "juno";
@@ -56,7 +59,10 @@ async function main() {
 
     let providers = [
         new CoinGeckoProvider(), 
-        new BinanceProvider()
+        new BinanceProvider(),
+        new CoinbaseProvider(),
+        new OsmosisProvider(),
+        new WyndDexProvider(),
     ];
 
     let all_data: Data[] = [];
@@ -85,7 +91,7 @@ async function main() {
     for (const [k, v] of Object.entries(prices_avg)) {
         data_arr.push({
             id: k,
-            value: v.total / v.count
+            value: Math.round(v.total / v.count)
         });
     }
 

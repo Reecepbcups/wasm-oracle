@@ -8,7 +8,7 @@ import { Data, Provider, Average, Averages } from '../types';
 // config
 const REQUESTED_SYMBOLS = { "ATOM": ["ATOMUSD", "ATOMUSDT"] }
 
-const RestHost = "https://api.binance.us"; "https://api1.binance.com"; // non us
+const RestHost = "https://api.binance.us"; // "https://api1.binance.com"; // non us
 const RestPath = "/api/v3/ticker/price"
 
 export class BinanceProvider implements Provider {
