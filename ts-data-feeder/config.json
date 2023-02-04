@@ -1,7 +1,11 @@
 {
     "binance": {
         "enabled": true,
-        "rest_host": "https://api.binance.us",
+        "use_us_endpoint": true,
+        "rest_host": {
+            "usa": "https://api.binance.us",
+            "domestic": "https://api.binance.com"
+        },
         "rest_path": "/api/v3/ticker/price",
         "symbols": {
             "ATOM": ["ATOMUSD", "ATOMUSDT"]

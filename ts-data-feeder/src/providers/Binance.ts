@@ -7,7 +7,14 @@ import {default as config} from '../../config.json';
 const CONFIG = config.binance;
 
 // "https://api1.binance.com"; // non us
-const RestHost = CONFIG.rest_host; 
+
+const use_usa_host = CONFIG.use_us_endpoint;
+
+let RestHost = CONFIG.rest_host.domestic;
+if (use_usa_host) {
+    RestHost = CONFIG.rest_host.usa;   
+}
+
 const RestPath = CONFIG.rest_path;
 const REQUESTED_SYMBOLS = CONFIG.symbols;
 
